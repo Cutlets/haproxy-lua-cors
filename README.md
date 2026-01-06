@@ -80,7 +80,7 @@ frontend https-in
     acl is_api path_beg /api/
     
     # Parameters: Methods, Origins, Headers, Credentials
-    http-request lua.cors "GET,POST,DELETE,OPTIONS" "extension.copykiller.com,myapp.com" "Content-Type,Authorization" "true" if is_api
+    http-request lua.cors "GET,POST,DELETE,OPTIONS" "example.com,myapp.com" "Content-Type,Authorization" "true" if is_api
     
     # Apply CORS to the response
     http-response lua.cors if { var(txn.origin) -m found }
