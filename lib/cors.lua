@@ -6,6 +6,7 @@
 --
 -- Copyright (c) 2019. Nick Ramirez <nramirez@haproxy.com>
 -- Copyright (c) 2019. HAProxy Technologies, LLC.
+-- Modified by Cutlets(ChiHyeon Lee) on [2026-01-06]: Added Access-Control-Allow-Credentials support.
 
 local M={}
 
