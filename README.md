@@ -4,20 +4,21 @@ Lua library for enabling CORS in HAProxy.
 
 ## Supported versions of HAProxy
 
-This library will work with HAProxy version 1.8 and newer.
+This library will work with HAProxy version 1.8 and newer. (Note: Preflight interception requires HAProxy 2.2+).
 
 ## Background
 
-Cross-origin Request Sharing allows you to permit client-side code running within a different domain to call your services. This module extends HAProxy so that it can:
+Cross-origin Request Sharing (CORS) allows you to permit client-side code running within a different domain to call your services. This module extends HAProxy so that it can:
 
-* set an *Access-Control-Allow-Methods* header in response to a preflight request
-* set an *Access-Control-Allow-Headers* header in response to a preflight request
-* set an *Access-Control-Max-Age* header in response to a preflight request
-* set an *Access-Control-Allow-Origin* header to whitelist a domain. Note that this header should only ever return either a single domain or an asterisk (*). Otherwise, it would have been possible to hardcode all permitted domains without the need for Lua scripting.
+* Set an **Access-Control-Allow-Methods** header in response to a preflight request.
+* Set an **Access-Control-Allow-Headers** header in response to a preflight request.
+* Set an **Access-Control-Max-Age** header in response to a preflight request.
+* Set an **Access-Control-Allow-Credentials** header to allow authenticated requests (Cookies, Authorization headers, etc.).
+* Set an **Access-Control-Allow-Origin** header to whitelist a domain.
 
-This library checks the incoming *Origin* header, which contains the calling code's domain, and tries to match it with the list of permitted domains. If there is a match, that domain is sent back in the *Access-Control-Allow-Origin* header.
+This library checks the incoming `Origin` header and tries to match it with the list of permitted domains. If there is a match, that domain is sent back in the `Access-Control-Allow-Origin` header.
 
-It also sets the *Vary* header to *Accept-Encoding,Origin* so that  caches do not reuse cached CORS responses for different origins.
+It also sets the `Vary` header to `Accept-Encoding, Origin` so that caches do not reuse cached CORS responses for different origins.
 
 ## Dependencies
 
@@ -25,87 +26,84 @@ It also sets the *Vary* header to *Accept-Encoding,Origin* so that  caches do no
 
 ## Installation
 
-Copy the *cors.lua* file to the server where you run HAProxy.
+1. Copy the `cors.lua` file to your HAProxy server.
+2. **Important:** Ensure the `core.register_action` line at the bottom of `cors.lua` is set to accept **4** arguments:
+```lua
+core.register_action("cors", {"http-req"}, cors_request, 4)
+
+```
+
+
 
 ## Usage
 
-Load the *cors.lua* file via the `lua-load` directive in the `global` section of your HAProxy configuration:
+Load the `cors.lua` file via the `lua-load` directive in the `global` section:
 
-```
+```haproxy
 global
     lua-load /path/to/cors.lua
+
 ```
 
-In your `frontend` or `listen` section, capture the client's *Origin* request header by adding `http-request lua.cors` Its parameters are:
+### Configuration
 
-* The first parameter is a comma-delimited list of HTTP methods that can be used. This is used to set the *Access-Control-Allow-Methods* header.
-* The second parameter is comma-delimited list of origins that are permitted to call your service. This is used to set the *Access-Control-Allow-Origin* header.
-* The third parameter is a comma-delimited list of custom headers that can be used. This is used to set the *Access-Control-Allow-Headers* header.
+In your `frontend` or `listen` section, use `http-request lua.cors` with **4 parameters**:
 
-Each of these parameters can be set to an asterisk (*) to allow all values.
+1. **Allowed Methods**: Comma-delimited list (e.g., `"GET,POST,OPTIONS"`).
+2. **Allowed Origins**: Comma-delimited list of permitted domains.
+3. **Allowed Headers**: Comma-delimited list of custom headers.
+4. **Allow Credentials**: Set to `"true"` to enable, or `"false"` to disable.
 
-Within the same `frontend` or `listen` section, add the `http-response lua.cors` action to attach CORS headers to responses from backend servers.
+> **Note:** The first three parameters can be set to an asterisk (`*`) to allow all values. However, if `Allow Credentials` is `"true"`, the `Origin` cannot be a wildcard.
+
+Add `http-response lua.cors` to the same section to process the response headers.
 
 ## Allowed origin patterns
 
-For the list of allowed origins, you can specify patterns such as:
-
-| pattern                       | example                  | description                                                             |
-|-------------------------------|--------------------------|-------------------------------------------------------------------------|
-| domain name alone             | mydomain.com             | allow any scheme (HTTP or HTTPS) for mydomain.com                       |
-| generic schema and domain     | //mydomain.com           | allow any scheme (HTTP or HTTPS) for mydomain.com                       |
-| schema and domain name        | https://mydomain.com     | allow only HTTPS of mydomain.com                                        |
-| schema, domain name, and port | http://mydomain.com:8080 | allow only HTTP of mydomain.com from port 8080                          |
-| dot and domain name           | .mydomain.com            | allow ALL subdomains of mydomain.com                                    |
-| dot, domain name, and port    | .mydomain.com:443        | allow ALL subdomains of mydomain.com from default HTTPS source port     |
-| port is *                     | http://mydomain.com:*    | allow only HTTP of mydomain.com on ANY ports                            |
+| Pattern | Example | Description |
+| --- | --- | --- |
+| Domain name | `mydomain.com` | Allow any scheme (HTTP/HTTPS) |
+| Generic scheme | `//mydomain.com` | Allow any scheme (HTTP/HTTPS) |
+| Specific scheme | `https://mydomain.com` | Allow only HTTPS |
+| Specific port | `http://mydomain.com:8080` | Allow only specific port |
+| Subdomains | `.mydomain.com` | Allow ALL subdomains |
+| Wildcard port | `http://mydomain.com:*` | Allow ANY port |
 
 ## Examples
 
-**Example 1: Allow specific methods, origins and headers**
+**Example 1: Specific domains with Credentials enabled**
+
+```haproxy
+frontend https-in
+    bind *:443 ssl crt /etc/ssl/certs/
+    
+    acl is_api path_beg /api/
+    
+    # Parameters: Methods, Origins, Headers, Credentials
+    http-request lua.cors "GET,POST,DELETE,OPTIONS" "extension.copykiller.com,myapp.com" "Content-Type,Authorization" "true" if is_api
+    
+    # Apply CORS to the response
+    http-response lua.cors if { var(txn.origin) -m found }
+
 ```
-http-request lua.cors "GET,PUT,POST" "example.com,localhost,localhost:8080" "X-Custom-Header1,X-Custom-Header2"
 
-http-response lua.cors 
-```
+**Example 2: Public API (No Credentials)**
 
-**Example 2: Allow all methods, origins, and headers**
+```haproxy
+http-request lua.cors "*" "*" "*" "false"
+http-response lua.cors
 
-```
-http-request lua.cors "*" "*" "*"
-
-http-response lua.cors 
 ```
 
 ## Preflight Requests
 
-This module handles preflight OPTIONS requests, but it does it differently depending on if you are using HAProxy 2.2 and above. For 2.2, the module intercepts the preflight request and returns it immediately without contacting the backend server. 
+For HAProxy 2.2+, the module intercepts `OPTIONS` requests and returns a `204 No Content` immediately. It returns:
 
-For versions prior to 2.2, the module must forward the request to the backend server and then attach the CORS headers to the response as it passes back through the load balancer.
+* `Access-Control-Allow-Methods`
+* `Access-Control-Allow-Headers`
+* `Access-Control-Allow-Credentials` (if set to "true")
+* `Access-Control-Max-Age`: 600
 
-This module returns the following CORS headers for a preflight request:
+## Security Note
 
-* `Access-Control-Allow-Methods` - set to the HTTP methods you set with `http-request lua cors` in the haproxy.cfg file
-* `Access-Conrol-Allow-Headers` - set to the HTTP headers you set with `http-request lua cors` in the haproxy.cfg file
-* `Access-Control-Max-Age` - set to 600
-
-## Example
-
-Check the *example* directory for a working demo. It uses Docker Compose to run HAProxy and a web server in containers. 
-
-1. Run the example with Docker Compose:
-
-   ```
-   docker-compose -f docker-compose.example.yml up
-   ```
-2. Go to http://localhost to test it. It demonstrates a preflight request by clicking the "PUT data" button.
-
-## Tests
-
-Run the unit tests:
-
-1. Run the unit tests with Docker Compose:
-
-   ```
-   docker-compose -f docker-compose.tests.yml up
-   ```
+When **Allow Credentials** is `"true"`, the library will automatically echo the request's `Origin` (if whitelisted) instead of a wildcard `*`, as required by the CORS specification.
