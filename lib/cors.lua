@@ -6,7 +6,6 @@
 --
 -- Copyright (c) 2019. Nick Ramirez <nramirez@haproxy.com>
 -- Copyright (c) 2019. HAProxy Technologies, LLC.
--- Modified by Cutlets(ChiHyeon Lee) on [2026-01-06]: Added Access-Control-Allow-Credentials support.
 
 local M={}
 
@@ -224,7 +223,7 @@ function cors_response(txn)
   local allowed_origins = transaction_data["allowed_origins"]
   local allowed_methods = transaction_data["allowed_methods"]
   local allowed_headers = transaction_data["allowed_headers"]
-  local allowe_credentail = transaction_data["allow_credentials"]
+  local allow_credentials = transaction_data["allow_credentials"]
   local method = transaction_data["method"]
 
   -- Bail if client did not send an Origin
@@ -245,7 +244,7 @@ function cors_response(txn)
     txn.http:res_set_header("Access-Control-Allow-Origin", allowed_origin)
 
     if allow_credentials == "true" then
-      txn.http:res_set_header("Access-Control-Allow-Credentials", "true")
+      txn.http:res_add_header("Access-Control-Allow-Credentials", "true")
     end
 
     if allowed_origin ~= "*" then
