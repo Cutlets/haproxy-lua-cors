@@ -107,3 +107,22 @@ For HAProxy 2.2+, the module intercepts `OPTIONS` requests and returns a `204 No
 ## Security Note
 
 When **Allow Credentials** is `"true"`, the library will automatically echo the request's `Origin` (if whitelisted) instead of a wildcard `*`, as required by the CORS specification.
+
+## License & Modifications
+
+This project is licensed under the **Apache License 2.0**.
+
+### Original Work
+
+* **Copyright (c) 2019. Nick Ramirez [nramirez@haproxy.com**](mailto:nramirez@haproxy.com)
+* **Copyright (c) 2019. HAProxy Technologies, LLC.**
+* Original Source: [HAProxy Technologies GitHub](https://github.com/haproxytech/haproxy-lua-cors) (or relevant origin)
+
+### Modifications
+
+In accordance with the Apache License 2.0, Clause 4(b), the following modifications have been made to the original software:
+
+* **Added support for `Access-Control-Allow-Credentials` header.**
+* **Extended `cors_request` and `preflight_request_ver2` functions** to accept and process the `allow_credentials` parameter.
+* **Updated `core.register_action**` to support 4 arguments in the configuration.
+* **Modified `cors_response**` to include credentials logic in the response phase.
