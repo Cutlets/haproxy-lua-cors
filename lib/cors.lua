@@ -120,11 +120,14 @@ end
 -- txn: The current transaction object that gives access to response properties
 -- allowed_methods: Comma-delimited list of allowed HTTP methods. (e.g. GET,POST,PUT,DELETE)
 -- allowed_headers: Comma-delimited list of allowed headers. (e.g. X-Header1,X-Header2)
-function preflight_request_ver1(txn, allowed_methods, allowed_headers)
+function preflight_request_ver1(txn, allowed_methods, allowed_headers, allow_credentials)
   core.Debug("CORS: preflight request received")
   txn.http:res_set_header("Access-Control-Allow-Methods", allowed_methods)
   txn.http:res_set_header("Access-Control-Allow-Headers", allowed_headers)
   txn.http:res_set_header("Access-Control-Max-Age", 600)
+  if allow_credentials == "true" then
+    txn.http:res_set_header("Access-Control-Allow-Credentials", "true")
+  end
   core.Debug("CORS: attaching allowed methods to response")
 end
 
@@ -136,7 +139,7 @@ end
 -- allowed_methods: Comma-delimited list of allowed HTTP methods. (e.g. GET,POST,PUT,DELETE)
 -- allowed_origins: Comma-delimited list of allowed origins. (e.g. localhost,localhost:8080,test.com)
 -- allowed_headers: Comma-delimited list of allowed headers. (e.g. X-Header1,X-Header2)
-function preflight_request_ver2(txn, origin, allowed_methods, allowed_origins, allowed_headers)
+function preflight_request_ver2(txn, origin, allowed_methods, allowed_origins, allowed_headers, allow_credentials)
   core.Debug("CORS: preflight request received")
 
   local reply = txn:reply()
@@ -147,6 +150,10 @@ function preflight_request_ver2(txn, origin, allowed_methods, allowed_origins, a
   reply:add_header("Access-Control-Max-Age", 600)
 
   local allowed_origin = M.get_allowed_origin(origin, allowed_origins)
+
+  if allow_credentials == "true" then
+    reply:add_header("Access-Control-Allow-Credentials", "true")
+  end
 
   if allowed_origin == nil then
     core.Debug("CORS: " .. origin .. " not allowed")
@@ -170,7 +177,7 @@ end
 -- allowed_methods: Comma-delimited list of allowed HTTP methods. (e.g. GET,POST,PUT,DELETE)
 -- allowed_origins: Comma-delimited list of allowed origins. (e.g. localhost,localhost:8080,test.com)
 -- allowed_headers: Comma-delimited list of allowed headers. (e.g. X-Header1,X-Header2)
-function cors_request(txn, allowed_methods, allowed_origins, allowed_headers)
+function cors_request(txn, allowed_methods, allowed_origins, allowed_headers, allow_credentials)
   local headers = txn.http:req_get_headers()
   local transaction_data = {}
   local origin = nil
@@ -191,6 +198,7 @@ function cors_request(txn, allowed_methods, allowed_origins, allowed_headers)
   transaction_data["allowed_methods"] = allowed_methods
   transaction_data["allowed_origins"] = allowed_origins
   transaction_data["allowed_headers"] = allowed_headers
+  transaction_data["allow_credentials"] = allow_credentials
 
   txn:set_priv(transaction_data)
 
@@ -198,7 +206,7 @@ function cors_request(txn, allowed_methods, allowed_origins, allowed_headers)
   transaction_data["method"] = method
 
   if method == "OPTIONS" and txn.reply ~= nil then
-    preflight_request_ver2(txn, origin, allowed_methods, allowed_origins, allowed_headers)
+    preflight_request_ver2(txn, origin, allowed_methods, allowed_origins, allowed_headers, allow_credentials)
   end
 end
 
@@ -215,6 +223,7 @@ function cors_response(txn)
   local allowed_origins = transaction_data["allowed_origins"]
   local allowed_methods = transaction_data["allowed_methods"]
   local allowed_headers = transaction_data["allowed_headers"]
+  local allowe_credentail = transaction_data["allow_credentials"]
   local method = transaction_data["method"]
 
   -- Bail if client did not send an Origin
@@ -234,6 +243,10 @@ function cors_response(txn)
     core.Debug("CORS: " .. origin .. " allowed")
     txn.http:res_set_header("Access-Control-Allow-Origin", allowed_origin)
 
+    if allow_credentials == "true" then
+      txn.http:res_set_header("Access-Control-Allow-Credentials", "true")
+    end
+
     if allowed_origin ~= "*" then
       txn.http:res_add_header("Vary", "Accept-Encoding,Origin")
     end
@@ -241,7 +254,7 @@ function cors_response(txn)
 end
 
 -- Register the actions with HAProxy
-core.register_action("cors", {"http-req"}, cors_request, 3)
+core.register_action("cors", {"http-req"}, cors_request, 4)
 core.register_action("cors", {"http-res"}, cors_response, 0)
 
 return M
