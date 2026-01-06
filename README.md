@@ -114,7 +114,7 @@ This project is licensed under the **Apache License 2.0**.
 
 ### Original Work
 
-* **Copyright (c) 2019. Nick Ramirez [nramirez@haproxy.com**](mailto:nramirez@haproxy.com)
+* **Copyright (c) 2019. Nick Ramirez [nramirez@haproxy.com**](mailto:nramirez@haproxy.com)**
 * **Copyright (c) 2019. HAProxy Technologies, LLC.**
 * Original Source: [HAProxy Technologies GitHub](https://github.com/haproxytech/haproxy-lua-cors) (or relevant origin)
 
@@ -124,5 +124,5 @@ In accordance with the Apache License 2.0, Clause 4(b), the following modificati
 
 * **Added support for `Access-Control-Allow-Credentials` header.**
 * **Extended `cors_request` and `preflight_request_ver2` functions** to accept and process the `allow_credentials` parameter.
-* **Updated `core.register_action**` to support 4 arguments in the configuration.
-* **Modified `cors_response**` to include credentials logic in the response phase.
+* **Updated `core.register_action**` to support 4 arguments in the configuration.**
+* **Modified `cors_response**` to include credentials logic in the response phase.**
