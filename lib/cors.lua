@@ -213,7 +213,7 @@ end
 
 -- When invoked during a response, sets CORS headers so that the browser can read the response from permitted domains.
 -- txn: The current transaction object that gives access to response properties.
-function cors_response(txn)
+function cors_response(txn,allow_credentials)
   local transaction_data = txn:get_priv()
 
   if transaction_data == nil then
@@ -224,7 +224,6 @@ function cors_response(txn)
   local allowed_origins = transaction_data["allowed_origins"]
   local allowed_methods = transaction_data["allowed_methods"]
   local allowed_headers = transaction_data["allowed_headers"]
-  local allow_credentials = transaction_data["allow_credentials"]
   local method = transaction_data["method"]
 
   -- Bail if client did not send an Origin
@@ -256,6 +255,6 @@ end
 
 -- Register the actions with HAProxy
 core.register_action("cors", {"http-req"}, cors_request, 4)
-core.register_action("cors", {"http-res"}, cors_response, 0)
+core.register_action("cors", {"http-res"}, cors_response, 1)
 
 return M
